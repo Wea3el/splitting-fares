@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Splitting Fares</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222535;
+      --border: #2e3148;
+      --accent: #6c63ff;
+      --accent-hover: #5a52e0;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header .logo {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+
+    header .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 32px 20px;
+      width: 100%;
+    }
+
+    /* ── Trip selector ── */
+    #trip-selector {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    #trip-selector h2 {
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .trip-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .trip-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.1s;
+    }
+
+    .trip-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .trip-card .tc-name {
+      font-weight: 600;
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+
+    .trip-card .tc-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* ── Create trip form ── */
+    .create-box {
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      gap: 10px;
+    }
+
+    /* ── Shared form inputs ── */
+    input[type="text"], input[type="number"] {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 13px;
+      border-radius: 7px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+
+    input[type="text"]:focus, input[type="number"]:focus {
+      border-color: var(--accent);
+    }
+
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 9px 18px;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    button:hover { background: var(--accent-hover); }
+
+    button.secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    button.secondary:hover { background: var(--border); }
+
+    button.danger {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      padding: 4px 10px;
+      font-size: 12px;
+    }
+
+    button.danger:hover { background: var(--danger); color: #fff; }
+
+    /* ── Trip view ── */
+    #trip-view { display: none; flex-direction: column; gap: 28px; }
+
+    .trip-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .trip-header h1 { font-size: 26px; font-weight: 700; }
+
+    .badge {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ── Two-column layout ── */
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 640px) { .cols { grid-template-columns: 1fr; } }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+    }
+
+    /* ── Members ── */
+    .member-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 13px;
+    }
+
+    .add-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* ── Expenses ── */
+    .expense-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .expense-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .expense-item .ei-left { flex: 1; }
+    .expense-item .ei-desc { font-size: 14px; font-weight: 500; }
+    .expense-item .ei-meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .expense-item .ei-amount { font-size: 16px; font-weight: 700; color: var(--success); white-space: nowrap; }
+
+    /* ── Add expense form ── */
+    .expense-form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .form-row { display: flex; gap: 8px; }
+
+    select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 13px;
+      border-radius: 7px;
+      font-size: 14px;
+      outline: none;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    select:focus { border-color: var(--accent); }
+
+    .checkboxes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: border-color 0.15s;
+      user-select: none;
+    }
+
+    .checkbox-label:has(input:checked) {
+      border-color: var(--accent);
+      background: rgba(108, 99, 255, 0.1);
+    }
+
+    .checkbox-label input { accent-color: var(--accent); }
+
+    /* ── Balances / settlements ── */
+    .balance-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .balance-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .balance-row .amount.owed { color: var(--success); font-weight: 700; }
+    .balance-row .amount.owes { color: var(--danger); font-weight: 700; }
+    .balance-row .amount.settled { color: var(--muted); }
+
+    .settlement-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .settlement-row .arrow { color: var(--muted); }
+    .settlement-row .amt { margin-left: auto; font-weight: 700; color: var(--warning); }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 18px;
+      font-size: 14px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      z-index: 999;
+      max-width: 300px;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #toast.error { border-color: var(--danger); color: var(--danger); }
+    #toast.success { border-color: var(--success); color: var(--success); }
+
+    .empty { color: var(--muted); font-size: 13px; font-style: italic; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">✈ Splitting Fares</div>
+    <div class="subtitle">Track and split trip expenses</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ── Trip selector ── -->
+  <div id="trip-selector">
+    <h2>Your Trips</h2>
+    <div class="trip-list" id="trip-list">
+      <p class="empty">No trips yet.</p>
+    </div>
+    <div class="create-box">
+      <input type="text" id="new-trip-name" placeholder="New trip name…" />
+      <button onclick="createTrip()">+ New Trip</button>
+    </div>
+  </div>
+
+  <!-- ── Trip view ── -->
+  <div id="trip-view">
+    <div class="trip-header">
+      <button class="secondary" onclick="goHome()" style="width:auto">← Back</button>
+      <h1 id="tv-name"></h1>
+      <span class="badge" id="tv-members-badge"></span>
+    </div>
+
+    <div class="cols">
+
+      <!-- Members -->
+      <div class="card">
+        <h3>Members</h3>
+        <div class="member-chips" id="member-chips"></div>
+        <div class="add-row">
+          <input type="text" id="new-member" placeholder="Add member…" />
+          <button onclick="addMember()" style="width:auto">Add</button>
+        </div>
+      </div>
+
+      <!-- Balances -->
+      <div class="card">
+        <h3>Balances</h3>
+        <div class="balance-list" id="balance-list"></div>
+      </div>
+
+    </div>
+
+    <!-- Settlements -->
+    <div class="card" id="settlements-card">
+      <h3>Who Pays Who</h3>
+      <div class="balance-list" id="settlement-list"></div>
+    </div>
+
+    <!-- Expenses -->
+    <div class="card">
+      <h3>Expenses</h3>
+      <div class="expense-list" id="expense-list"></div>
+
+      <!-- Add expense form -->
+      <div class="expense-form" id="expense-form" style="display:none">
+        <div class="form-row">
+          <input type="text" id="exp-desc" placeholder="Description (e.g. Dinner)" style="flex:2" />
+          <input type="number" id="exp-amount" placeholder="Amount $" min="0" step="0.01" style="flex:1" />
+        </div>
+        <div class="form-row">
+          <select id="exp-payer"><option value="">Who paid?</option></select>
+        </div>
+        <div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:6px">Split among:</p>
+          <div class="checkboxes" id="exp-split"></div>
+        </div>
+        <div class="form-row" style="justify-content:flex-end">
+          <button class="secondary" onclick="toggleExpenseForm()">Cancel</button>
+          <button onclick="addExpense()">Add Expense</button>
+        </div>
+      </div>
+
+      <button class="secondary" id="show-expense-btn" onclick="toggleExpenseForm()">+ Add Expense</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+  const API = '';
+  let currentTripId = null;
+
+  // ── Toast ────────────────────────────────────────────────────────────────────
+  function toast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `show ${type}`;
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.className = '', 3000);
+  }
+
+  // ── API helpers ──────────────────────────────────────────────────────────────
+  async function api(path, opts = {}) {
+    const res = await fetch(API + path, {
+      headers: { 'Content-Type': 'application/json' },
+      ...opts,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Error');
+    return data;
+  }
+
+  // ── Home ─────────────────────────────────────────────────────────────────────
+  async function loadHome() {
+    const trips = await api('/api/trips');
+    renderTripList(trips);
+  }
+
+  function renderTripList(trips) {
+    const el = document.getElementById('trip-list');
+    if (!trips.length) {
+      el.innerHTML = '<p class="empty">No trips yet. Create one below!</p>';
+      return;
+    }
+    el.innerHTML = trips.map(t => `
+      <div class="trip-card" onclick="openTrip('${t.id}')">
+        <div class="tc-name">${esc(t.name)}</div>
+        <div class="tc-meta">${t.members.length} member${t.members.length !== 1 ? 's' : ''} · ${t.expenses.length} expense${t.expenses.length !== 1 ? 's' : ''}</div>
+      </div>
+    `).join('');
+  }
+
+  async function createTrip() {
+    const name = document.getElementById('new-trip-name').value.trim();
+    if (!name) return toast('Enter a trip name', 'error');
+    try {
+      await api('/api/trips', { method: 'POST', body: { name } });
+      document.getElementById('new-trip-name').value = '';
+      loadHome();
+      toast(`Trip "${name}" created!`);
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  function goHome() {
+    currentTripId = null;
+    document.getElementById('trip-selector').style.display = '';
+    document.getElementById('trip-view').style.display = 'none';
+    loadHome();
+  }
+
+  // ── Trip view ────────────────────────────────────────────────────────────────
+  async function openTrip(id) {
+    currentTripId = id;
+    document.getElementById('trip-selector').style.display = 'none';
+    document.getElementById('trip-view').style.display = 'flex';
+    const trip = await api(`/api/trips/${id}`);
+    renderTrip(trip);
+  }
+
+  function renderTrip(trip) {
+    document.getElementById('tv-name').textContent = trip.name;
+    document.getElementById('tv-members-badge').textContent = `${trip.members.length} member${trip.members.length !== 1 ? 's' : ''}`;
+
+    // Members
+    const chips = document.getElementById('member-chips');
+    chips.innerHTML = trip.members.length
+      ? trip.members.map(m => `<span class="chip">${esc(m)}</span>`).join('')
+      : '<span class="empty">No members yet.</span>';
+
+    // Payer select
+    const payer = document.getElementById('exp-payer');
+    payer.innerHTML = '<option value="">Who paid?</option>' +
+      trip.members.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+
+    // Split checkboxes
+    const splitEl = document.getElementById('exp-split');
+    splitEl.innerHTML = trip.members.map(m => `
+      <label class="checkbox-label">
+        <input type="checkbox" value="${esc(m)}" checked />
+        ${esc(m)}
+      </label>
+    `).join('');
+
+    // Expenses
+    const expEl = document.getElementById('expense-list');
+    expEl.innerHTML = trip.expenses.length
+      ? trip.expenses.map((e, i) => `
+        <div class="expense-item">
+          <div class="ei-left">
+            <div class="ei-desc">${esc(e.description)}</div>
+            <div class="ei-meta">Paid by <strong>${esc(e.paid_by)}</strong> · Split: ${e.split_among.map(esc).join(', ')}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="ei-amount">$${e.amount.toFixed(2)}</div>
+            <button class="danger" onclick="deleteExpense(${i})">×</button>
+          </div>
+        </div>
+      `).join('')
+      : '<p class="empty">No expenses yet.</p>';
+
+    // Balances
+    const balEl = document.getElementById('balance-list');
+    balEl.innerHTML = trip.balances.length
+      ? trip.balances.map(b => `
+        <div class="balance-row">
+          <span>${esc(b.person)}</span>
+          <span class="amount ${b.status}">
+            ${b.status === 'owed' ? '+$' + b.amount.toFixed(2) :
+              b.status === 'owes' ? '-$' + Math.abs(b.amount).toFixed(2) : 'Settled ✓'}
+          </span>
+        </div>
+      `).join('')
+      : '<p class="empty">Add expenses to see balances.</p>';
+
+    // Settlements
+    const settEl = document.getElementById('settlement-list');
+    settEl.innerHTML = trip.settlements.length
+      ? trip.settlements.map(s => `
+        <div class="settlement-row">
+          <span>${esc(s.from)}</span>
+          <span class="arrow">→</span>
+          <span>${esc(s.to)}</span>
+          <span class="amt">$${s.amount.toFixed(2)}</span>
+        </div>
+      `).join('')
+      : '<p class="empty">Everyone is settled up! ✓</p>';
+  }
+
+  async function addMember() {
+    const inp = document.getElementById('new-member');
+    const name = inp.value.trim();
+    if (!name) return;
+    try {
+      const trip = await api(`/api/trips/${currentTripId}/members`, {
+        method: 'POST', body: { name }
+      });
+      inp.value = '';
+      renderTrip(trip);
+      toast(`${name} added!`);
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  function toggleExpenseForm() {
+    const form = document.getElementById('expense-form');
+    const btn = document.getElementById('show-expense-btn');
+    const visible = form.style.display !== 'none';
+    form.style.display = visible ? 'none' : 'flex';
+    btn.textContent = visible ? '+ Add Expense' : 'Cancel';
+    btn.style.display = visible ? '' : 'none';
+  }
+
+  async function addExpense() {
+    const desc = document.getElementById('exp-desc').value.trim();
+    const amount = parseFloat(document.getElementById('exp-amount').value);
+    const paid_by = document.getElementById('exp-payer').value;
+    const split_among = [...document.querySelectorAll('#exp-split input:checked')].map(c => c.value);
+
+    if (!desc) return toast('Enter a description', 'error');
+    if (!amount || amount <= 0) return toast('Enter a valid amount', 'error');
+    if (!paid_by) return toast('Select who paid', 'error');
+    if (!split_among.length) return toast('Select at least one person to split', 'error');
+
+    try {
+      const trip = await api(`/api/trips/${currentTripId}/expenses`, {
+        method: 'POST', body: { description: desc, amount, paid_by, split_among }
+      });
+      document.getElementById('exp-desc').value = '';
+      document.getElementById('exp-amount').value = '';
+      document.getElementById('exp-payer').value = '';
+      toggleExpenseForm();
+      renderTrip(trip);
+      toast('Expense added!');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  async function deleteExpense(index) {
+    if (!confirm('Delete this expense?')) return;
+    try {
+      const trip = await api(`/api/trips/${currentTripId}/expenses/${index}`, { method: 'DELETE' });
+      renderTrip(trip);
+      toast('Expense deleted');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  // ── Keyboard shortcuts ───────────────────────────────────────────────────────
+  document.getElementById('new-trip-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') createTrip();
+  });
+  document.getElementById('new-member').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addMember();
+  });
+
+  function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────────
+  loadHome();
+</script>
+</body>
+</html>
