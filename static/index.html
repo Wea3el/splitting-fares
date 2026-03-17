@@ -323,8 +323,11 @@
       background: var(--surface2);
       border-radius: 8px;
       font-size: 14px;
+      gap: 8px;
     }
 
+    .balance-row .br-left { display: flex; flex-direction: column; gap: 2px; }
+    .balance-row .br-paid { font-size: 11px; color: var(--muted); }
     .balance-row .amount.owed { color: var(--success); font-weight: 700; }
     .balance-row .amount.owes { color: var(--danger); font-weight: 700; }
     .balance-row .amount.settled { color: var(--muted); }
@@ -400,6 +403,7 @@
       <button class="secondary" onclick="goHome()" style="width:auto">← Back</button>
       <h1 id="tv-name"></h1>
       <span class="badge" id="tv-members-badge"></span>
+      <button class="danger" onclick="deleteTrip()" style="margin-left:auto">Delete Trip</button>
     </div>
 
     <div class="cols">
@@ -585,7 +589,10 @@
     balEl.innerHTML = trip.balances.length
       ? trip.balances.map(b => `
         <div class="balance-row">
-          <span>${esc(b.person)}</span>
+          <div class="br-left">
+            <span>${esc(b.person)}</span>
+            <span class="br-paid">paid $${b.total_paid.toFixed(2)} total</span>
+          </div>
           <span class="amount ${b.status}">
             ${b.status === 'owed' ? '+$' + b.amount.toFixed(2) :
               b.status === 'owes' ? '-$' + Math.abs(b.amount).toFixed(2) : 'Settled ✓'}
@@ -654,6 +661,18 @@
       toggleExpenseForm();
       renderTrip(trip);
       toast('Expense added!');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  async function deleteTrip() {
+    const name = document.getElementById('tv-name').textContent;
+    if (!confirm(`Delete trip "${name}" and all its data?`)) return;
+    try {
+      await api(`/api/trips/${currentTripId}`, { method: 'DELETE' });
+      toast(`Trip "${name}" deleted`);
+      goHome();
     } catch (e) {
       toast(e.message, 'error');
     }
