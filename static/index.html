@@ -217,9 +217,26 @@
       background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: 20px;
-      padding: 4px 12px;
+      padding: 4px 6px 4px 12px;
       font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
+
+    .chip-del {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 2px;
+      cursor: pointer;
+      border-radius: 50%;
+      transition: color 0.15s;
+    }
+
+    .chip-del:hover { color: var(--danger); background: none; }
 
     .add-row {
       display: flex;
@@ -525,7 +542,11 @@
     // Members
     const chips = document.getElementById('member-chips');
     chips.innerHTML = trip.members.length
-      ? trip.members.map(m => `<span class="chip">${esc(m)}</span>`).join('')
+      ? trip.members.map(m => `
+          <span class="chip">
+            ${esc(m)}
+            <button class="chip-del" onclick="deleteMember('${esc(m)}')" title="Remove ${esc(m)}">×</button>
+          </span>`).join('')
       : '<span class="empty">No members yet.</span>';
 
     // Payer select
@@ -633,6 +654,17 @@
       toggleExpenseForm();
       renderTrip(trip);
       toast('Expense added!');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  async function deleteMember(name) {
+    if (!confirm(`Remove ${name} from the trip?`)) return;
+    try {
+      const trip = await api(`/api/trips/${currentTripId}/members/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      renderTrip(trip);
+      toast(`${name} removed`);
     } catch (e) {
       toast(e.message, 'error');
     }
