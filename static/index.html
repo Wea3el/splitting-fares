@@ -432,6 +432,29 @@
       <div class="balance-list" id="settlement-list"></div>
     </div>
 
+    <!-- Payments (Zelle / Venmo) -->
+    <div class="card">
+      <h3>Payments Sent</h3>
+      <div class="balance-list" id="payment-list"></div>
+
+      <div class="expense-form" id="payment-form" style="display:none">
+        <div class="form-row">
+          <select id="pay-from"><option value="">Who sent?</option></select>
+          <select id="pay-to"><option value="">Sent to?</option></select>
+          <input type="number" id="pay-amount" placeholder="Amount $" min="0" step="0.01" />
+        </div>
+        <div class="form-row">
+          <input type="text" id="pay-note" placeholder="Note (e.g. Zelle, Venmo…)" />
+        </div>
+        <div class="form-row" style="justify-content:flex-end">
+          <button class="secondary" onclick="togglePaymentForm()">Cancel</button>
+          <button onclick="addPayment()">Log Payment</button>
+        </div>
+      </div>
+
+      <button class="secondary" id="show-payment-btn" onclick="togglePaymentForm()">+ Log Payment</button>
+    </div>
+
     <!-- Expenses -->
     <div class="card">
       <h3>Expenses</h3>
@@ -613,6 +636,26 @@
         </div>
       `).join('')
       : '<p class="empty">Everyone is settled up! ✓</p>';
+
+    // Payments
+    const payEl = document.getElementById('payment-list');
+    payEl.innerHTML = trip.payments.length
+      ? trip.payments.map((p, i) => `
+        <div class="settlement-row">
+          <span>${esc(p.sent_by)}</span>
+          <span class="arrow">→</span>
+          <span>${esc(p.sent_to)}</span>
+          ${p.note ? `<span style="color:var(--muted);font-size:12px">${esc(p.note)}</span>` : ''}
+          <span class="amt" style="color:var(--success)">$${p.amount.toFixed(2)}</span>
+          <button class="danger" onclick="deletePayment(${i})">×</button>
+        </div>
+      `).join('')
+      : '<p class="empty">No payments logged yet.</p>';
+
+    // Payment selects
+    const memberOpts = '<option value="">—</option>' + trip.members.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+    document.getElementById('pay-from').innerHTML = memberOpts.replace('—', 'Who sent?');
+    document.getElementById('pay-to').innerHTML = memberOpts.replace('—', 'Sent to?');
   }
 
   async function addMember() {
@@ -661,6 +704,48 @@
       toggleExpenseForm();
       renderTrip(trip);
       toast('Expense added!');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  function togglePaymentForm() {
+    const form = document.getElementById('payment-form');
+    const btn = document.getElementById('show-payment-btn');
+    const visible = form.style.display !== 'none';
+    form.style.display = visible ? 'none' : 'flex';
+    btn.style.display = visible ? '' : 'none';
+  }
+
+  async function addPayment() {
+    const sent_by = document.getElementById('pay-from').value;
+    const sent_to = document.getElementById('pay-to').value;
+    const amount = parseFloat(document.getElementById('pay-amount').value);
+    const note = document.getElementById('pay-note').value.trim();
+    if (!sent_by) return toast('Select who sent', 'error');
+    if (!sent_to) return toast('Select who received', 'error');
+    if (sent_by === sent_to) return toast("Can't send to yourself", 'error');
+    if (!amount || amount <= 0) return toast('Enter a valid amount', 'error');
+    try {
+      const trip = await api(`/api/trips/${currentTripId}/payments`, {
+        method: 'POST', body: { sent_by, sent_to, amount, note }
+      });
+      document.getElementById('pay-amount').value = '';
+      document.getElementById('pay-note').value = '';
+      togglePaymentForm();
+      renderTrip(trip);
+      toast('Payment logged!');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  async function deletePayment(index) {
+    if (!confirm('Remove this payment?')) return;
+    try {
+      const trip = await api(`/api/trips/${currentTripId}/payments/${index}`, { method: 'DELETE' });
+      renderTrip(trip);
+      toast('Payment removed');
     } catch (e) {
       toast(e.message, 'error');
     }
